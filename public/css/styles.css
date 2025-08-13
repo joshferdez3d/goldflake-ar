@@ -1,0 +1,739 @@
+/* public/css/styles.css */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+.container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Leaf Background Animation - Updated to use PNG with more leaves */
+.leaf-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    overflow: hidden;
+}
+
+/* Base leaves with PNG - more positioned around the screen */
+.leaf-background::before,
+.leaf-background::after {
+    content: '';
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    background-image: url('/images/leaf.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    animation: float 6s ease-in-out infinite;
+    opacity: 0.7;
+}
+
+.leaf-background::before {
+    top: 15%;
+    left: 8%;
+    animation-delay: 0s;
+    transform: rotate(25deg);
+}
+
+.leaf-background::after {
+    top: 70%;
+    right: 12%;
+    animation-delay: 3s;
+    transform: rotate(-35deg);
+}
+
+/* Additional leaves using a more complex approach */
+.leaf-background {
+    background-image: 
+        url('/images/leaf.png'),
+        url('/images/leaf.png'),
+        url('/images/leaf.png'),
+        url('/images/leaf.png'),
+        url('/images/leaf.png'),
+        url('/images/leaf.png');
+    background-size: 
+        40px 40px,
+        35px 35px,
+        45px 45px,
+        30px 30px,
+        50px 50px,
+        38px 38px;
+    background-position: 
+        5% 25%,
+        85% 15%,
+        92% 60%,
+        15% 80%,
+        70% 85%,
+        25% 5%;
+    background-repeat: no-repeat;
+    animation: leafFloat 8s ease-in-out infinite;
+}
+
+@keyframes leafFloat {
+    0%, 100% { 
+        background-position: 
+            5% 25%,
+            85% 15%,
+            92% 60%,
+            15% 80%,
+            70% 85%,
+            25% 5%;
+    }
+    50% { 
+        background-position: 
+            8% 20%,
+            88% 18%,
+            90% 65%,
+            18% 75%,
+            75% 80%,
+            28% 8%;
+    }
+}
+
+/* Add more leaves with pseudo-elements and additional styling */
+@keyframes float {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-20px) rotate(10deg); }
+}
+
+/* Card Styles */
+.card {
+    background: linear-gradient(135deg, #E6B800 0%, #DAA520 100%);
+    border-radius: 25px;
+    padding: 40px 30px;
+    text-align: center;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+    position: relative;
+    z-index: 10;
+    min-width: 320px;
+    max-width: 400px;
+    width: 90%;
+}
+
+.card h1 {
+    color: white;
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 20px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.card p {
+    color: white;
+    font-size: 1.1rem;
+    margin-bottom: 30px;
+    line-height: 1.5;
+    opacity: 0.9;
+}
+
+/* Button Styles */
+.button-group {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+}
+
+.btn {
+    padding: 12px 30px;
+    border: none;
+    border-radius: 25px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 80px;
+}
+
+.btn-primary {
+    background: white;
+    color: #DAA520;
+}
+
+.btn-primary:hover {
+    background: #f0f0f0;
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background: transparent;
+    color: white;
+    border: 2px solid white;
+}
+
+.btn-secondary:hover {
+    background: white;
+    color: #DAA520;
+}
+
+/* Form Styles */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.input-container {
+    position: relative;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+}
+
+.input-container input {
+    background: transparent;
+    border: none;
+    padding: 15px 10px 15px 40px;
+    color: white;
+    font-size: 1rem;
+    width: 100%;
+    outline: none;
+}
+
+.input-container input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.icon {
+    position: absolute;
+    left: 15px;
+    width: 20px;
+    height: 20px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.user-icon {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" fill="white" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>');
+}
+
+.phone-icon {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" fill="white" viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>');
+}
+
+.location-icon {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" fill="white" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>');
+}
+
+.terms {
+    font-size: 0.9rem;
+    margin-top: 15px;
+    opacity: 0.8;
+}
+
+/* OTP Styles */
+.otp-inputs {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.otp-input {
+    width: 50px;
+    height: 50px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    text-align: center;
+    font-size: 1.5rem;
+    color: white;
+    outline: none;
+    transition: border-color 0.3s ease;
+}
+
+.otp-input:focus {
+    border-color: white;
+}
+
+.resend {
+    color: white;
+    text-decoration: underline;
+    cursor: pointer;
+    margin-bottom: 20px;
+    opacity: 0.8;
+}
+
+.resend:hover {
+    opacity: 1;
+}
+
+/* AR Screen */
+.ar-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1000;
+}
+
+.ar-container {
+    width: 100%;
+    height: 100%;
+}
+
+.ar-container iframe {
+    border: none;
+    width: 100%;
+    height: 100%;
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+    .card {
+        margin: 20px;
+        padding: 30px 20px;
+    }
+    
+    .card h1 {
+        font-size: 2rem;
+    }
+    
+    .button-group {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .btn {
+        width: 100%;
+    }
+    
+    .otp-inputs {
+        gap: 10px;
+    }
+    
+    .otp-input {
+        width: 45px;
+        height: 45px;
+    }
+}
+
+/* Loading Animation */
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Additional styles for enhanced functionality - append to existing styles.css */
+
+/* Error handling styles */
+.error-alert {
+    background: rgba(255, 107, 107, 0.2);
+    border: 1px solid rgba(255, 107, 107, 0.3);
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
+    color: white;
+    text-align: center;
+}
+
+.error-alert p {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.field-error {
+    color: #ff6b6b;
+    font-size: 0.8rem;
+    margin-top: 5px;
+    padding-left: 15px;
+}
+
+.input-container input.error {
+    border: 2px solid #ff6b6b !important;
+    background: rgba(255, 107, 107, 0.1) !important;
+}
+
+/* Link styles */
+.back-link {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.link {
+    color: white;
+    text-decoration: none;
+    font-size: 0.9rem;
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+}
+
+.link:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+
+/* OTP enhancements */
+.otp-input.filled {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: white;
+    transform: scale(1.05);
+}
+
+.otp-input.shake {
+    animation: shake 0.6s ease-in-out;
+}
+
+.otp-timer {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.otp-timer span {
+    color: white;
+    font-weight: bold;
+    font-size: 1.1rem;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 5px 15px;
+    border-radius: 15px;
+    display: inline-block;
+    min-width: 60px;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+/* Permission status */
+.permission-status {
+    margin-top: 20px;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 15px;
+}
+
+.permission-check {
+    text-align: left;
+}
+
+.check-item {
+    margin: 10px 0;
+    font-size: 0.9rem;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.check-item.success {
+    background: rgba(76, 175, 80, 0.2);
+    border-left: 3px solid #4CAF50;
+}
+
+.check-item.warning {
+    background: rgba(255, 193, 7, 0.2);
+    border-left: 3px solid #FFC107;
+}
+
+/* Modal styles */
+.custom-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 10000;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.custom-modal.show {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.modal-overlay {
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background: linear-gradient(135deg, #E6B800 0%, #DAA520 100%);
+    padding: 30px;
+    border-radius: 20px;
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-content h3 {
+    color: white;
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+}
+
+.modal-content p {
+    color: white;
+    margin-bottom: 25px;
+    line-height: 1.5;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.modal-btn {
+    padding: 12px 25px;
+    border: none;
+    border-radius: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 80px;
+}
+
+.modal-btn.primary {
+    background: white;
+    color: #DAA520;
+}
+
+.modal-btn.primary:hover {
+    background: #f0f0f0;
+    transform: translateY(-2px);
+}
+
+.modal-btn.secondary {
+    background: transparent;
+    color: white;
+    border: 2px solid white;
+}
+
+.modal-btn.secondary:hover {
+    background: white;
+    color: #DAA520;
+}
+
+/* Page transition effects */
+body.page-transition {
+    opacity: 0;
+    transform: scale(0.95);
+    transition: all 0.3s ease;
+}
+
+.card.animate {
+    animation: cardEntrance 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes cardEntrance {
+    0% {
+        opacity: 0;
+        transform: scale(0.8) translateY(50px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Enhanced button states */
+.btn:active {
+    transform: scale(0.95);
+}
+
+.btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.btn:disabled:hover {
+    transform: none !important;
+}
+
+/* Loading spinner improvements */
+.loading {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: currentColor;
+    animation: spin 1s linear infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+/* Enhanced floating leaves */
+.floating-leaf {
+    pointer-events: none;
+}
+
+.floating-leaf::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2px;
+    height: 60%;
+    background: rgba(139, 69, 19, 0.6);
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+/* Improved form validation */
+.input-container {
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.input-container:focus-within {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.input-container input:focus {
+    outline: none;
+}
+
+/* Success states */
+.input-container.valid {
+    background: rgba(76, 175, 80, 0.2);
+}
+
+.input-container.valid::after {
+    content: '✓';
+    position: absolute;
+    right: 15px;
+    color: #4CAF50;
+    font-weight: bold;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .leaf-background::before,
+    .leaf-background::after {
+        opacity: 0.8;
+    }
+    
+    .floating-leaf {
+        opacity: 0.6 !important;
+    }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+    .floating-leaf,
+    .card,
+    .btn,
+    .input-container {
+        animation: none !important;
+        transition: none !important;
+    }
+    
+    .loading {
+        animation: none;
+        border: 2px solid currentColor;
+        opacity: 0.7;
+    }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+    .card {
+        border: 2px solid white;
+    }
+    
+    .btn {
+        border: 2px solid currentColor;
+    }
+    
+    .input-container {
+        border: 1px solid rgba(255, 255, 255, 0.5);
+    }
+}
+
+/* Phone number input specific styles */
+input[name="phoneNumber"] {
+    letter-spacing: 1px;
+    font-family: 'Courier New', monospace;
+}
+
+input[name="phoneNumber"]:valid {
+    background: rgba(76, 175, 80, 0.1);
+}
+
+input[name="phoneNumber"]:invalid {
+    background: rgba(255, 107, 107, 0.1);
+}
+
+/* Indian mobile number validation styles */
+.phone-validation-msg {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.8);
+    margin-top: 5px;
+    text-align: center;
+}
+
+/* Touch device improvements */
+@media (hover: none) and (pointer: coarse) {
+    .btn {
+        min-height: 48px;
+        font-size: 1.1rem;
+    }
+    
+    .otp-input {
+        width: 60px;
+        height: 60px;
+        font-size: 1.8rem;
+    }
+    
+    .input-container input {
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+}
+
+/* Landscape mobile adjustments */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+    .card {
+        padding: 20px;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    
+    .card h1 {
+        font-size: 1.8rem;
+        margin-bottom: 15px;
+    }
+    
+    .floating-leaf {
+        display: none;
+    }
+}

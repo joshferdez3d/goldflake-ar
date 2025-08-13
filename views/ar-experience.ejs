@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Experience</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+            font-family: 'Arial', sans-serif;
+        }
+        .ar-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* Enhanced Leaf Background Animation with more leaves */
+        .leaf-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        /* Multiple floating leaves */
+        .floating-leaf {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background-image: url('/images/leaf.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .floating-leaf:nth-child(1) {
+            top: 10%;
+            left: 5%;
+            animation: floatLeaf 8s ease-in-out infinite;
+            animation-delay: 0s;
+            transform: rotate(15deg);
+        }
+
+        .floating-leaf:nth-child(2) {
+            top: 20%;
+            right: 10%;
+            width: 35px;
+            height: 35px;
+            animation: floatLeaf 10s ease-in-out infinite;
+            animation-delay: 1s;
+            transform: rotate(-25deg);
+        }
+
+        .floating-leaf:nth-child(3) {
+            bottom: 30%;
+            left: 15%;
+            width: 45px;
+            height: 45px;
+            animation: floatLeaf 9s ease-in-out infinite;
+            animation-delay: 2s;
+            transform: rotate(45deg);
+        }
+
+        .floating-leaf:nth-child(4) {
+            top: 50%;
+            right: 20%;
+            width: 30px;
+            height: 30px;
+            animation: floatLeaf 11s ease-in-out infinite;
+            animation-delay: 1.5s;
+            transform: rotate(-60deg);
+        }
+
+        .floating-leaf:nth-child(5) {
+            bottom: 20%;
+            right: 8%;
+            width: 50px;
+            height: 50px;
+            animation: floatLeaf 12s ease-in-out infinite;
+            animation-delay: 3s;
+            transform: rotate(30deg);
+        }
+
+        .floating-leaf:nth-child(6) {
+            top: 5%;
+            left: 40%;
+            width: 38px;
+            height: 38px;
+            animation: floatLeaf 8.5s ease-in-out infinite;
+            animation-delay: 0.5s;
+            transform: rotate(-15deg);
+        }
+
+        .floating-leaf:nth-child(7) {
+            bottom: 10%;
+            left: 35%;
+            width: 42px;
+            height: 42px;
+            animation: floatLeaf 9.5s ease-in-out infinite;
+            animation-delay: 2.5s;
+            transform: rotate(75deg);
+        }
+
+        .floating-leaf:nth-child(8) {
+            top: 35%;
+            left: 8%;
+            width: 36px;
+            height: 36px;
+            animation: floatLeaf 10.5s ease-in-out infinite;
+            animation-delay: 1.8s;
+            transform: rotate(-45deg);
+        }
+
+        .floating-leaf:nth-child(9) {
+            top: 65%;
+            right: 5%;
+            width: 44px;
+            height: 44px;
+            animation: floatLeaf 11.5s ease-in-out infinite;
+            animation-delay: 3.5s;
+            transform: rotate(20deg);
+        }
+
+        .floating-leaf:nth-child(10) {
+            bottom: 40%;
+            right: 30%;
+            width: 33px;
+            height: 33px;
+            animation: floatLeaf 7.5s ease-in-out infinite;
+            animation-delay: 0.8s;
+            transform: rotate(-30deg);
+        }
+
+        @keyframes floatLeaf {
+            0%, 100% { 
+                transform: translateY(0px) translateX(0px) rotate(0deg); 
+            }
+            25% { 
+                transform: translateY(-15px) translateX(10px) rotate(90deg); 
+            }
+            50% { 
+                transform: translateY(-25px) translateX(-10px) rotate(180deg); 
+            }
+            75% { 
+                transform: translateY(-15px) translateX(5px) rotate(270deg); 
+            }
+        }
+
+        /* Style the 8th Wall embed container */
+        #ar-embed-container {
+            background: linear-gradient(135deg, #E6B800 0%, #DAA520 100%);
+            border-radius: 25px;
+            padding: 40px 30px;
+            text-align: center;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 10;
+            min-width: 320px;
+            max-width: 400px;
+            width: 90%;
+        }
+        
+        /* Custom styling for 8th Wall embed - FIXED to prevent duplicate text */
+        [data-8code] {
+            display: inline-block !important;
+            padding: 12px 30px !important;
+            background: white !important;
+            color: #DAA520 !important;
+            border: none !important;
+            border-radius: 25px !important;
+            font-size: 1.1rem !important;
+            font-weight: bold !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            min-width: 200px !important;
+            text-decoration: none !important;
+            font-family: 'Arial', sans-serif !important;
+        }
+        
+        [data-8code]:hover {
+            background: #f0f0f0 !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1) !important;
+        }
+        
+        /* Hide any default 8th Wall content */
+        [data-8code] svg,
+        [data-8code] img,
+        [data-8code]:before,
+        [data-8code]:after {
+            display: none !important;
+            content: none !important;
+        }
+        
+        .ar-title {
+            color: white;
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .ar-description {
+            color: white;
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+            line-height: 1.5;
+            opacity: 0.9;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #E6B800 0%, #DAA520 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.5s ease;
+        }
+        
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+        
+        .loading-text {
+            color: white;
+            font-size: 1.2rem;
+            text-align: center;
+            font-family: Arial, sans-serif;
+        }
+        
+        .exit-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            z-index: 1001;
+            font-size: 1rem;
+            font-family: Arial, sans-serif;
+            transition: background 0.3s ease;
+        }
+        
+        .exit-button:hover {
+            background: rgba(0, 0, 0, 0.7);
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 480px) {
+            #ar-embed-container {
+                margin: 20px;
+                padding: 30px 20px;
+            }
+            
+            .ar-title {
+                font-size: 2rem;
+            }
+            
+            .floating-leaf {
+                opacity: 0.4;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Enhanced leaf background with multiple leaves -->
+    <div class="leaf-background">
+        <div class="floating-leaf"></div>
+        <div class="floating-leaf"></div>
+        <div class="floating-leaf"></div>
+        <div class="floating-leaf"></div>
+        <div class="floating-leaf"></div>
+        <div class="floating-leaf"></div>
+        <div class="floating-leaf"></div>
+        <div class="floating-leaf"></div>
+        <div class="floating-leaf"></div>
+        <div class="floating-leaf"></div>
+    </div>
+    
+    <div class="ar-container">
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">
+                <p>Preparing AR Experience...</p>
+                <p>Please wait a moment</p>
+            </div>
+        </div>
+        
+        <button class="exit-button" onclick="exitAR()">Exit AR</button>
+        
+        <div id="ar-embed-container">
+            <h1 class="ar-title">AR Experience</h1>
+            <p class="ar-description">Ready to explore in<br>augmented reality?</p>
+            
+            <!-- 8th Wall Embed Code -->
+            <a data-8code="vqpvn"></a>
+        </div>
+    </div>
+
+    <!-- 8th Wall Embed Script -->
+    <script src="//cdn.8thwall.com/web/share/embed8.js"></script>
+    
+    <script>
+        // Hide loading overlay when page loads
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                document.getElementById('loadingOverlay').classList.add('hidden');
+            }, 1500);
+        });
+
+        function exitAR() {
+            if (confirm('Are you sure you want to exit the AR experience?')) {
+                window.location.href = '/';
+            }
+        }
+
+        // Improved button text handling - only set once if needed
+        function enforceButtonText() {
+            const arButton = document.querySelector('[data-8code]');
+            if (arButton && arButton.textContent.trim() === '') {
+                // Only set text if it's empty
+                arButton.textContent = 'AR View 📱';
+            }
+        }
+
+        // Apply text after 8th Wall loads, but only if needed
+        setTimeout(enforceButtonText, 1000);
+        setTimeout(enforceButtonText, 2000);
+
+        // Listen for 8th Wall events
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === '8thwall') {
+                console.log('8th Wall event:', event.data);
+                if (event.data.event === 'ready') {
+                    document.getElementById('loadingOverlay').classList.add('hidden');
+                    enforceButtonText();
+                }
+            }
+        });
+
+        // Prevent any duplicate text issues
+        document.addEventListener('DOMContentLoaded', function() {
+            const arButton = document.querySelector('[data-8code]');
+            if (arButton) {
+                // Clean up any duplicate text nodes
+                const textNodes = Array.from(arButton.childNodes).filter(node => node.nodeType === 3);
+                if (textNodes.length > 1) {
+                    // Keep only the first text node
+                    for (let i = 1; i < textNodes.length; i++) {
+                        arButton.removeChild(textNodes[i]);
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

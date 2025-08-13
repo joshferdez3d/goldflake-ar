@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enter OTP - AR Web Application</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="leaf-background"></div>
+        <div class="content">
+            <div class="otp-screen">
+                <div class="card">
+                    <h1>Enter OTP</h1>
+                    <p>We've sent your 4-digit code<br>to +91 <%= phoneNumber %></p>
+                    
+                    <% if (error) { %>
+                        <div class="error-alert">
+                            <p><%= error %></p>
+                        </div>
+                    <% } %>
+                    
+                    <form id="otpForm" method="POST" action="/verify-otp">
+                        <div class="otp-inputs">
+                            <input type="text" class="otp-input" maxlength="1" name="otp1" required autocomplete="off">
+                            <input type="text" class="otp-input" maxlength="1" name="otp2" required autocomplete="off">
+                            <input type="text" class="otp-input" maxlength="1" name="otp3" required autocomplete="off">
+                            <input type="text" class="otp-input" maxlength="1" name="otp4" required autocomplete="off">
+                        </div>
+                        <input type="hidden" name="otp" id="otpValue">
+                        <div class="otp-timer">
+                            <span id="timer">5:00</span>
+                        </div>
+                        <p class="resend" id="resendOTP">Resend OTP</p>
+                        <button type="submit" class="btn btn-primary">Submit</button>
+                    </form>
+                    <p class="back-link">
+                        <a href="/register" class="link">← Back to Register</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/js/main.js"></script>
+</body>
+</html>
