@@ -5,7 +5,28 @@ const bodyParser = require('body-parser');
 const session = require('express-session');
 
 const app = express();
+// Production settings
 const PORT = process.env.PORT || 3000;
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const SESSION_SECRET = process.env.SESSION_SECRET || 'your-secret-key-change-in-production';
+
+// Update session configuration
+app.use(session({
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: { 
+        secure: NODE_ENV === 'production', // Use secure cookies in production
+        maxAge: 24 * 60 * 60 * 1000,
+        httpOnly: true
+    },
+    name: 'sessionId'
+}));
+
+// Trust proxy in production (for Render)
+if (NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+}
 
 // Middleware
 app.use(bodyParser.json());
