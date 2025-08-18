@@ -5,19 +5,25 @@ const bodyParser = require('body-parser');
 const session = require('express-session');
 
 const app = express();
+
 // Production settings
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'your-secret-key-change-in-production';
 
-// Update session configuration
+// Middleware
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Session middleware - SINGLE CONFIGURATION
 app.use(session({
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: { 
         secure: NODE_ENV === 'production', // Use secure cookies in production
-        maxAge: 24 * 60 * 60 * 1000,
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
         httpOnly: true
     },
     name: 'sessionId'
@@ -27,24 +33,6 @@ app.use(session({
 if (NODE_ENV === 'production') {
     app.set('trust proxy', 1);
 }
-
-// Middleware
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Session middleware for storing user data temporarily
-app.use(session({
-    secret: 'your-secret-key-change-in-production',
-    resave: false,
-    saveUninitialized: false, // Changed to false to prevent session creation for anonymous users
-    cookie: { 
-        secure: false, // Set to true in production with HTTPS
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        httpOnly: true
-    },
-    name: 'sessionId' // Give the session a specific name
-}));
 
 // Set EJS as template engine
 app.set('view engine', 'ejs');
@@ -130,10 +118,15 @@ app.get('/otp', (req, res) => {
         return res.redirect('/register');
     }
     
-    const { phoneNumber } = req.session.userData;
+    const { phoneNumber, otp } = req.session.userData;
+    
+    // Pass OTP to the view ONLY in development mode
+    const displayOTP = NODE_ENV !== 'production' ? otp : null;
+    
     res.render('otp', { 
         phoneNumber: phoneNumber,
-        error: null 
+        error: null,
+        testOTP: displayOTP // Pass OTP for testing display
     });
 });
 
@@ -160,24 +153,36 @@ app.post('/verify-otp', (req, res) => {
     // Check if OTP is expired (5 minutes)
     if (Date.now() - otpGenerated > 5 * 60 * 1000) {
         console.log('OTP expired');
+        
+        // Pass OTP for testing even on error
+        const displayOTP = NODE_ENV !== 'production' ? sessionOTP : null;
+        
         return res.render('otp', { 
             phoneNumber: phoneNumber,
-            error: 'OTP has expired. Please request a new one.' 
+            error: 'OTP has expired. Please request a new one.',
+            testOTP: displayOTP
         });
     }
     
     if (otp !== sessionOTP) {
         console.log('OTP mismatch. Received:', otp, 'Expected:', sessionOTP);
+        
+        // Pass OTP for testing even on error
+        const displayOTP = NODE_ENV !== 'production' ? sessionOTP : null;
+        
         return res.render('otp', { 
             phoneNumber: phoneNumber,
-            error: 'Invalid OTP. Please try again.' 
+            error: 'Invalid OTP. Please try again.',
+            testOTP: displayOTP
         });
     }
     
-    // Mark as verified
+    // Mark as verified and redirect directly to AR experience
     req.session.userData.verified = true;
-    console.log('OTP verified successfully, redirecting to permissions');
-    res.redirect('/permissions');
+    console.log('OTP verified successfully, redirecting directly to AR experience');
+    
+    // Skip permissions page and go directly to AR experience
+    res.redirect('/ar-experience');
 });
 
 app.post('/resend-otp', (req, res) => {
@@ -197,33 +202,21 @@ app.post('/resend-otp', (req, res) => {
     console.log(`⏰ Resent at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
     console.log('='.repeat(50) + '\n');
     
-    res.json({ success: true, message: 'OTP sent successfully' });
+    // Return the new OTP in development mode
+    res.json({ 
+        success: true, 
+        message: 'OTP sent successfully',
+        testOTP: NODE_ENV !== 'production' ? newOTP : undefined
+    });
 });
 
-app.get('/permissions', (req, res) => {
-    if (!req.session.userData || !req.session.userData.verified) {
-        return res.redirect('/register');
-    }
-    
-    res.render('permissions');
-});
+// REMOVED: /permissions route - no longer needed
 
-app.post('/grant-permissions', (req, res) => {
-    if (!req.session.userData || !req.session.userData.verified) {
-        return res.redirect('/register');
-    }
-    
-    // Mark permissions as granted
-    req.session.userData.permissionsGranted = true;
-    
-    // Here you would save user data to Firestore
-    // await saveUserToFirestore(req.session.userData);
-    
-    res.redirect('/ar-experience');
-});
+// REMOVED: /grant-permissions route - no longer needed
 
 app.get('/ar-experience', (req, res) => {
-    if (!req.session.userData || !req.session.userData.verified || !req.session.userData.permissionsGranted) {
+    // Simplified check - only verify OTP verification, not permissions
+    if (!req.session.userData || !req.session.userData.verified) {
         return res.redirect('/register');
     }
     
@@ -233,7 +226,7 @@ app.get('/ar-experience', (req, res) => {
 });
 
 // Development-only endpoint to get current OTP (remove in production)
-if (process.env.NODE_ENV !== 'production') {
+if (NODE_ENV !== 'production') {
     app.get('/dev/otp', (req, res) => {
         console.log('Session check - Session ID:', req.sessionID);
         console.log('Session data:', req.session);
@@ -278,7 +271,7 @@ app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).render('error', { 
         error: 'Something went wrong!',
-        message: process.env.NODE_ENV === 'development' ? err.message : 'Internal Server Error'
+        message: NODE_ENV === 'development' ? err.message : 'Internal Server Error'
     });
 });
 
@@ -292,7 +285,11 @@ app.use((req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`Environment: ${NODE_ENV}`);
+    if (NODE_ENV !== 'production') {
+        console.log('⚠️  Development mode: OTP will be displayed on the page');
+    }
+    console.log('📱 Flow: Welcome → Register → OTP → AR Experience');
 });
 
 module.exports = app;

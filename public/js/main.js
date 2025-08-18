@@ -22,8 +22,9 @@ document.addEventListener('DOMContentLoaded', function() {
         case '/otp':
             initOTPPage();
             break;
-        case '/permissions':
-            initPermissionsPage();
+        // REMOVED: permissions page initialization
+        case '/ar-experience':
+            // 8th Wall will handle permissions automatically
             break;
     }
 
@@ -85,10 +86,7 @@ function initOTPPage() {
     }
 }
 
-function initPermissionsPage() {
-    // Add permission detection
-    detectPermissionStatus();
-}
+// REMOVED: initPermissionsPage and detectPermissionStatus functions
 
 function startOTPTimer() {
     let timeLeft = 5 * 60; // 5 minutes in seconds
@@ -385,142 +383,7 @@ async function handleResendOTP() {
     resendBtn.disabled = false;
 }
 
-async function detectPermissionStatus() {
-    const statusDiv = document.createElement('div');
-    statusDiv.className = 'permission-status';
-    statusDiv.innerHTML = '<p>Checking device capabilities...</p>';
-    
-    const card = document.querySelector('.permissions-screen .card');
-    if (card) {
-        card.appendChild(statusDiv);
-    }
-    
-    const permissions = {
-        camera: false,
-        motion: false,
-        orientation: false
-    };
-    
-    // Check camera
-    try {
-        await navigator.mediaDevices.getUserMedia({ video: true });
-        permissions.camera = true;
-    } catch (e) {
-        permissions.camera = false;
-    }
-    
-    // Check device motion
-    if (typeof DeviceMotionEvent !== 'undefined') {
-        if (typeof DeviceMotionEvent.requestPermission === 'function') {
-            permissions.motion = 'needs_request';
-        } else {
-            permissions.motion = true;
-        }
-    }
-    
-    // Check device orientation
-    if (typeof DeviceOrientationEvent !== 'undefined') {
-        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-            permissions.orientation = 'needs_request';
-        } else {
-            permissions.orientation = true;
-        }
-    }
-    
-    statusDiv.innerHTML = `
-        <div class="permission-check">
-            <p class="check-item ${permissions.camera ? 'success' : 'warning'}">
-                📷 Camera: ${permissions.camera ? 'Available' : 'Needs Access'}
-            </p>
-            <p class="check-item ${permissions.motion === true ? 'success' : 'warning'}">
-                📱 Motion Sensors: ${permissions.motion === true ? 'Available' : 'Needs Permission'}
-            </p>
-            <p class="check-item ${permissions.orientation === true ? 'success' : 'warning'}">
-                🧭 Orientation: ${permissions.orientation === true ? 'Available' : 'Needs Permission'}
-            </p>
-        </div>
-    `;
-}
-
-// Handle permissions
-window.grantPermissions = async function() {
-    const btn = document.querySelector('.permissions-screen .btn-primary');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="loading"></span> Requesting...';
-    btn.disabled = true;
-
-    try {
-        const results = [];
-        
-        // Request device motion permissions
-        if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-            const permission = await DeviceMotionEvent.requestPermission();
-            results.push({ type: 'motion', granted: permission === 'granted' });
-            if (permission !== 'granted') {
-                throw new Error('Motion sensor permission denied');
-            }
-        }
-
-        // Request device orientation permissions
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            const permission = await DeviceOrientationEvent.requestPermission();
-            results.push({ type: 'orientation', granted: permission === 'granted' });
-            if (permission !== 'granted') {
-                throw new Error('Device orientation permission denied');
-            }
-        }
-
-        // Request camera permissions
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { 
-                    facingMode: 'environment',
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                } 
-            });
-            results.push({ type: 'camera', granted: true });
-            
-            // Stop the stream immediately after getting permission
-            stream.getTracks().forEach(track => track.stop());
-        } catch (error) {
-            results.push({ type: 'camera', granted: false });
-            throw new Error('Camera permission denied or not available');
-        }
-
-        // All permissions granted, redirect to AR experience
-        btn.innerHTML = '<span class="loading"></span> Launching AR...';
-        
-        setTimeout(() => {
-            fetch('/grant-permissions', { method: 'POST' })
-                .then(() => window.location.href = '/ar-experience')
-                .catch(err => {
-                    console.error('Error:', err);
-                    window.location.href = '/ar-experience';
-                });
-        }, 1500);
-
-    } catch (error) {
-        console.error('Permission error:', error);
-        
-        const errorMessages = {
-            'Motion sensor permission denied': 'Device motion sensors are required for AR tracking.',
-            'Device orientation permission denied': 'Device orientation is required for AR functionality.',
-            'Camera permission denied or not available': 'Camera access is required to use AR features.'
-        };
-        
-        const userMessage = errorMessages[error.message] || 'AR permissions are required to continue.';
-        
-        showModal('Permission Required', `${userMessage}\n\nPlease enable all permissions and try again.`, [
-            { text: 'Try Again', action: () => window.grantPermissions() },
-            { text: 'Go Back', action: () => window.location.href = '/' }
-        ]);
-        
-        // Reset button
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-};
+// REMOVED: grantPermissions function - 8th Wall handles this automatically
 
 // Create floating leaves animation with PNG
 function createFloatingLeaves() {

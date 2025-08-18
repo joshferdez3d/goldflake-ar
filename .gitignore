@@ -1,6 +1,22 @@
-node_modules
+# Dependencies
+node_modules/
+
+# Environment variables
 .env
+.env.local
+
+# Logs
+*.log
 npm-debug.log*
+
+# OS files
 .DS_Store
-dist
-coverage
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Development
+*.tmp
+*.temp

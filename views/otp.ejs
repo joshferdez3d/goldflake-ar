@@ -5,6 +5,65 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enter OTP - AR Web Application</title>
     <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .test-otp-display {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .test-otp-display h3 {
+            color: white;
+            margin: 0 0 10px 0;
+            font-size: 0.9rem;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .test-otp-code {
+            font-size: 2rem;
+            font-weight: bold;
+            color: white;
+            letter-spacing: 8px;
+            font-family: 'Courier New', monospace;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px 20px;
+            border-radius: 10px;
+            display: inline-block;
+        }
+        
+        .test-warning {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.8rem;
+            margin-top: 10px;
+            font-style: italic;
+        }
+        
+        .copy-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .copy-btn.copied {
+            background: rgba(76, 175, 80, 0.3);
+            border-color: #4CAF50;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -14,6 +73,15 @@
                 <div class="card">
                     <h1>Enter OTP</h1>
                     <p>We've sent your 4-digit code<br>to +91 <%= phoneNumber %></p>
+                    
+                    <% if (typeof testOTP !== 'undefined' && testOTP) { %>
+                        <div class="test-otp-display">
+                            <h3>🧪 Test Mode - Your OTP</h3>
+                            <div class="test-otp-code" id="testOTPCode"><%= testOTP %></div>
+                            <button class="copy-btn" onclick="copyOTP()">Copy OTP</button>
+                            <p class="test-warning">This is visible only in development mode</p>
+                        </div>
+                    <% } %>
                     
                     <% if (error) { %>
                         <div class="error-alert">
@@ -32,7 +100,7 @@
                         <div class="otp-timer">
                             <span id="timer">5:00</span>
                         </div>
-                        <p class="resend" id="resendOTP">Resend OTP</p>
+                        <p class="resend" id="resendOTP" style="cursor: pointer;">Resend OTP</p>
                         <button type="submit" class="btn btn-primary">Submit</button>
                     </form>
                     <p class="back-link">
@@ -42,6 +110,100 @@
             </div>
         </div>
     </div>
+    
     <script src="/js/main.js"></script>
+    <script>
+        // Copy OTP to clipboard
+        function copyOTP() {
+            const otpCode = document.getElementById('testOTPCode').textContent;
+            navigator.clipboard.writeText(otpCode).then(() => {
+                const btn = event.target;
+                btn.textContent = '✓ Copied!';
+                btn.classList.add('copied');
+                
+                // Auto-fill the OTP inputs
+                const otpInputs = document.querySelectorAll('.otp-input');
+                otpCode.split('').forEach((digit, index) => {
+                    if (otpInputs[index]) {
+                        otpInputs[index].value = digit;
+                        otpInputs[index].classList.add('filled');
+                    }
+                });
+                
+                // Update hidden field
+                document.getElementById('otpValue').value = otpCode;
+                
+                // Reset button after 2 seconds
+                setTimeout(() => {
+                    btn.textContent = 'Copy OTP';
+                    btn.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy OTP:', err);
+                // Fallback: select the text
+                const range = document.createRange();
+                range.selectNode(document.getElementById('testOTPCode'));
+                window.getSelection().removeAllRanges();
+                window.getSelection().addRange(range);
+            });
+        }
+        
+        // Update resend OTP handler to show new OTP
+        const originalResendHandler = window.handleResendOTP;
+        if (originalResendHandler) {
+            window.handleResendOTP = async function() {
+                const resendBtn = document.getElementById('resendOTP');
+                resendBtn.innerHTML = '<span class="loading"></span> Sending...';
+                resendBtn.disabled = true;
+                
+                try {
+                    const response = await fetch('/resend-otp', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Reset timer and inputs
+                        document.querySelectorAll('.otp-input').forEach(input => {
+                            input.value = '';
+                            input.disabled = false;
+                            input.style.opacity = '1';
+                            input.classList.remove('filled');
+                        });
+                        
+                        document.getElementById('timer').style.color = 'white';
+                        
+                        // Update displayed OTP if in test mode
+                        if (data.testOTP) {
+                            const otpDisplay = document.getElementById('testOTPCode');
+                            if (otpDisplay) {
+                                otpDisplay.textContent = data.testOTP;
+                            }
+                        }
+                        
+                        // Restart timer
+                        startOTPTimer();
+                        
+                        showModal('OTP Sent', 'A new OTP has been sent to your phone number.', [
+                            { text: 'OK', action: () => document.querySelector('.otp-input').focus() }
+                        ]);
+                    } else {
+                        throw new Error(data.message || 'Failed to send OTP');
+                    }
+                } catch (error) {
+                    showModal('Error', 'Failed to send OTP. Please try again.', [
+                        { text: 'OK', action: () => {} }
+                    ]);
+                }
+                
+                resendBtn.textContent = 'Resend OTP';
+                resendBtn.disabled = false;
+            };
+        }
+    </script>
 </body>
 </html>
