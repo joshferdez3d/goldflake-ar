@@ -1,4 +1,4 @@
-/* public/css/styles.css */
+/* public/css/styles.css - Complete updated version with enhanced leaf animation */
 * {
     margin: 0;
     padding: 0;
@@ -21,7 +21,7 @@ body {
     align-items: center;
 }
 
-/* Leaf Background Animation - Updated to use PNG with more leaves */
+/* Enhanced Leaf Background Animation with better distribution */
 .leaf-background {
     position: absolute;
     top: 0;
@@ -32,87 +32,110 @@ body {
     overflow: hidden;
 }
 
-/* Base leaves with PNG - more positioned around the screen */
+/* Improved floating leaf animations with full screen coverage */
+@keyframes floatLeaf {
+    0% { 
+        transform: translateY(0px) translateX(0px) rotate(0deg); 
+        opacity: 0.6;
+    }
+    25% { 
+        transform: translateY(-30px) translateX(20px) rotate(90deg); 
+        opacity: 0.8;
+    }
+    50% { 
+        transform: translateY(-45px) translateX(-15px) rotate(180deg); 
+        opacity: 1;
+    }
+    75% { 
+        transform: translateY(-30px) translateX(25px) rotate(270deg); 
+        opacity: 0.8;
+    }
+    100% { 
+        transform: translateY(0px) translateX(0px) rotate(360deg); 
+        opacity: 0.6;
+    }
+}
+
+@keyframes floatLeafReverse {
+    0% { 
+        transform: translateY(-20px) translateX(10px) rotate(180deg); 
+        opacity: 0.5;
+    }
+    25% { 
+        transform: translateY(-40px) translateX(-20px) rotate(270deg); 
+        opacity: 0.7;
+    }
+    50% { 
+        transform: translateY(-60px) translateX(15px) rotate(360deg); 
+        opacity: 0.9;
+    }
+    75% { 
+        transform: translateY(-40px) translateX(-10px) rotate(450deg); 
+        opacity: 0.7;
+    }
+    100% { 
+        transform: translateY(-20px) translateX(10px) rotate(540deg); 
+        opacity: 0.5;
+    }
+}
+
+@keyframes floatLeafSlow {
+    0% { 
+        transform: translateY(0px) translateX(0px) rotate(0deg) scale(1); 
+        opacity: 0.4;
+    }
+    33% { 
+        transform: translateY(-25px) translateX(30px) rotate(120deg) scale(1.1); 
+        opacity: 0.7;
+    }
+    66% { 
+        transform: translateY(-50px) translateX(-20px) rotate(240deg) scale(0.9); 
+        opacity: 0.8;
+    }
+    100% { 
+        transform: translateY(0px) translateX(0px) rotate(360deg) scale(1); 
+        opacity: 0.4;
+    }
+}
+
+/* Enhanced base leaves positioning across the entire screen */
 .leaf-background::before,
 .leaf-background::after {
     content: '';
     position: absolute;
-    width: 50px;
-    height: 50px;
+    width: 45px;
+    height: 45px;
     background-image: url('/images/leaf.png');
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
-    animation: float 6s ease-in-out infinite;
-    opacity: 0.7;
+    animation: floatLeaf 8s ease-in-out infinite;
+    pointer-events: none;
 }
 
 .leaf-background::before {
-    top: 15%;
-    left: 8%;
+    top: 20%;
+    left: 15%;
     animation-delay: 0s;
-    transform: rotate(25deg);
+    animation-duration: 7s;
 }
 
 .leaf-background::after {
-    top: 70%;
-    right: 12%;
-    animation-delay: 3s;
-    transform: rotate(-35deg);
+    top: 60%;
+    right: 20%;
+    animation-delay: 3.5s;
+    animation-duration: 9s;
+    animation-name: floatLeafReverse;
 }
 
-/* Additional leaves using a more complex approach */
-.leaf-background {
-    background-image: 
-        url('/images/leaf.png'),
-        url('/images/leaf.png'),
-        url('/images/leaf.png'),
-        url('/images/leaf.png'),
-        url('/images/leaf.png'),
-        url('/images/leaf.png');
-    background-size: 
-        40px 40px,
-        35px 35px,
-        45px 45px,
-        30px 30px,
-        50px 50px,
-        38px 38px;
-    background-position: 
-        5% 25%,
-        85% 15%,
-        92% 60%,
-        15% 80%,
-        70% 85%,
-        25% 5%;
+/* Enhanced floating leaves - better distribution */
+.floating-leaf {
+    pointer-events: none;
+    position: absolute;
+    background-image: url('/images/leaf.png');
+    background-size: contain;
     background-repeat: no-repeat;
-    animation: leafFloat 8s ease-in-out infinite;
-}
-
-@keyframes leafFloat {
-    0%, 100% { 
-        background-position: 
-            5% 25%,
-            85% 15%,
-            92% 60%,
-            15% 80%,
-            70% 85%,
-            25% 5%;
-    }
-    50% { 
-        background-position: 
-            8% 20%,
-            88% 18%,
-            90% 65%,
-            18% 75%,
-            75% 80%,
-            28% 8%;
-    }
-}
-
-/* Add more leaves with pseudo-elements and additional styling */
-@keyframes float {
-    0%, 100% { transform: translateY(0px) rotate(0deg); }
-    50% { transform: translateY(-20px) rotate(10deg); }
+    background-position: center;
 }
 
 /* Card Styles */
@@ -196,9 +219,16 @@ body {
     display: flex;
     align-items: center;
     padding: 0 15px;
+    transition: all 0.3s ease;
 }
 
-.input-container input {
+.input-container:focus-within {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.input-container input,
+.input-container select {
     background: transparent;
     border: none;
     padding: 15px 10px 15px 40px;
@@ -210,6 +240,30 @@ body {
 
 .input-container input::placeholder {
     color: rgba(255, 255, 255, 0.7);
+}
+
+/* Custom dropdown styles */
+.input-container select {
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
+.input-container select option {
+    background: #DAA520;
+    color: white;
+    padding: 10px;
+}
+
+/* Dropdown arrow */
+.input-container.select-container::after {
+    content: '▼';
+    position: absolute;
+    right: 15px;
+    color: rgba(255, 255, 255, 0.7);
+    pointer-events: none;
+    font-size: 0.8rem;
 }
 
 .icon {
@@ -298,53 +352,6 @@ body {
     height: 100%;
 }
 
-/* Responsive Design */
-@media (max-width: 480px) {
-    .card {
-        margin: 20px;
-        padding: 30px 20px;
-    }
-    
-    .card h1 {
-        font-size: 2rem;
-    }
-    
-    .button-group {
-        flex-direction: column;
-        gap: 15px;
-    }
-    
-    .btn {
-        width: 100%;
-    }
-    
-    .otp-inputs {
-        gap: 10px;
-    }
-    
-    .otp-input {
-        width: 45px;
-        height: 45px;
-    }
-}
-
-/* Loading Animation */
-.loading {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border: 3px solid rgba(255, 255, 255, 0.3);
-    border-radius: 50%;
-    border-top-color: white;
-    animation: spin 1s ease-in-out infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-/* Additional styles for enhanced functionality - append to existing styles.css */
-
 /* Error handling styles */
 .error-alert {
     background: rgba(255, 107, 107, 0.2);
@@ -368,7 +375,8 @@ body {
     padding-left: 15px;
 }
 
-.input-container input.error {
+.input-container input.error,
+.input-container select.error {
     border: 2px solid #ff6b6b !important;
     background: rgba(255, 107, 107, 0.1) !important;
 }
@@ -579,7 +587,7 @@ body.page-transition {
     transform: none !important;
 }
 
-/* Loading spinner improvements */
+/* Loading Animation */
 .loading {
     display: inline-block;
     width: 16px;
@@ -592,35 +600,8 @@ body.page-transition {
     vertical-align: middle;
 }
 
-/* Enhanced floating leaves */
-.floating-leaf {
-    pointer-events: none;
-}
-
-.floating-leaf::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 2px;
-    height: 60%;
-    background: rgba(139, 69, 19, 0.6);
-    transform: translate(-50%, -50%) rotate(45deg);
-}
-
-/* Improved form validation */
-.input-container {
-    position: relative;
-    transition: all 0.3s ease;
-}
-
-.input-container:focus-within {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-}
-
-.input-container input:focus {
-    outline: none;
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 
 /* Success states */
@@ -634,6 +615,99 @@ body.page-transition {
     right: 15px;
     color: #4CAF50;
     font-weight: bold;
+}
+
+/* Phone number input specific styles */
+input[name="phoneNumber"] {
+    letter-spacing: 1px;
+    font-family: 'Courier New', monospace;
+}
+
+input[name="phoneNumber"]:valid {
+    background: rgba(76, 175, 80, 0.1);
+}
+
+input[name="phoneNumber"]:invalid {
+    background: rgba(255, 107, 107, 0.1);
+}
+
+/* Indian mobile number validation styles */
+.phone-validation-msg {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.8);
+    margin-top: 5px;
+    text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+    .card {
+        margin: 20px;
+        padding: 30px 20px;
+    }
+    
+    .card h1 {
+        font-size: 2rem;
+    }
+    
+    .button-group {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .btn {
+        width: 100%;
+    }
+    
+    .otp-inputs {
+        gap: 10px;
+    }
+    
+    .otp-input {
+        width: 45px;
+        height: 45px;
+    }
+    
+    .floating-leaf {
+        opacity: 0.4 !important;
+    }
+}
+
+/* Touch device improvements */
+@media (hover: none) and (pointer: coarse) {
+    .btn {
+        min-height: 48px;
+        font-size: 1.1rem;
+    }
+    
+    .otp-input {
+        width: 60px;
+        height: 60px;
+        font-size: 1.8rem;
+    }
+    
+    .input-container input,
+    .input-container select {
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+}
+
+/* Landscape mobile adjustments */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+    .card {
+        padding: 20px;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    
+    .card h1 {
+        font-size: 1.8rem;
+        margin-bottom: 15px;
+    }
+    
+    .floating-leaf {
+        display: none;
+    }
 }
 
 /* Dark mode support */
@@ -663,6 +737,11 @@ body.page-transition {
         border: 2px solid currentColor;
         opacity: 0.7;
     }
+    
+    .leaf-background::before,
+    .leaf-background::after {
+        animation: none !important;
+    }
 }
 
 /* High contrast mode */
@@ -680,60 +759,181 @@ body.page-transition {
     }
 }
 
-/* Phone number input specific styles */
-input[name="phoneNumber"] {
-    letter-spacing: 1px;
-    font-family: 'Courier New', monospace;
+.searchable-dropdown {
+    position: relative;
+    width: 100%;
 }
 
-input[name="phoneNumber"]:valid {
-    background: rgba(76, 175, 80, 0.1);
+.searchable-dropdown input {
+    width: 100%;
+    padding: 15px 10px 15px 40px;
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 1rem;
+    outline: none;
 }
 
-input[name="phoneNumber"]:invalid {
-    background: rgba(255, 107, 107, 0.1);
+.searchable-dropdown input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
 }
 
-/* Indian mobile number validation styles */
-.phone-validation-msg {
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.8);
-    margin-top: 5px;
+.dropdown-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    background: #DAA520;
+    border-radius: 0 0 15px 15px;
+    z-index: 9999; /* Much higher z-index */
+    display: none;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); /* Stronger shadow */
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    margin-top: 2px; /* Small gap to prevent overlap */
+}
+
+.dropdown-list.show {
+    display: block;
+}
+
+.dropdown-option {
+    padding: 12px 15px;
+    color: white;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    transition: background-color 0.2s ease;
+    background: #DAA520; /* Ensure solid background */
+    position: relative;
+    z-index: 10000;
+}
+
+.dropdown-option:hover,
+.dropdown-option.highlighted {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.dropdown-option:last-child {
+    border-bottom: none;
+    border-radius: 0 0 15px 15px;
+}
+
+.dropdown-option.group-header {
+    background: rgba(0, 0, 0, 0.3);
+    font-weight: bold;
+    font-size: 0.9rem;
+    cursor: default;
+    color: rgba(255, 255, 255, 0.95);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.dropdown-option.group-header:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.no-results {
+    padding: 15px;
     text-align: center;
+    color: rgba(255, 255, 255, 0.8);
+    font-style: italic;
+    background: #DAA520;
 }
 
-/* Touch device improvements */
-@media (hover: none) and (pointer: coarse) {
-    .btn {
-        min-height: 48px;
-        font-size: 1.1rem;
-    }
-    
-    .otp-input {
-        width: 60px;
-        height: 60px;
-        font-size: 1.8rem;
-    }
-    
-    .input-container input {
-        font-size: 16px; /* Prevents zoom on iOS */
-    }
+/* Custom scrollbar for dropdown */
+.dropdown-list::-webkit-scrollbar {
+    width: 8px;
 }
 
-/* Landscape mobile adjustments */
-@media screen and (max-height: 500px) and (orientation: landscape) {
-    .card {
-        padding: 20px;
-        max-height: 90vh;
-        overflow-y: auto;
+.dropdown-list::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.dropdown-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 4px;
+}
+
+.dropdown-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.6);
+}
+
+/* Dropdown arrow for searchable dropdown */
+.input-container.searchable-container::after {
+    content: '🔍';
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255, 255, 255, 0.7);
+    pointer-events: none;
+    font-size: 0.9rem;
+    z-index: 5;
+}
+
+.input-container.searchable-container.open::after {
+    content: '▲';
+}
+
+/* Loading state */
+.dropdown-loading {
+    padding: 15px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.7);
+    background: #DAA520;
+}
+
+/* Error state for searchable dropdown */
+.input-container.searchable-container.error {
+    border: 2px solid #ff6b6b !important;
+    background: rgba(255, 107, 107, 0.1) !important;
+}
+
+/* Ensure form elements don't interfere */
+.form-group {
+    position: relative;
+    z-index: 1;
+    margin-bottom: 20px;
+}
+
+/* When dropdown is open, increase the container z-index */
+.form-group:has(.searchable-container.open) {
+    z-index: 10000;
+}
+
+/* Fallback for browsers that don't support :has() */
+.form-group.dropdown-active {
+    z-index: 10000;
+}
+
+/* Ensure card content doesn't interfere with dropdown */
+.card {
+    position: relative;
+    z-index: 10;
+    overflow: visible; /* Allow dropdown to extend outside */
+}
+
+/* Fix for terms and back-link positioning */
+.terms, .back-link {
+    position: relative;
+    z-index: 1;
+}
+
+/* Mobile optimizations for dropdown */
+@media (max-width: 480px) {
+    .dropdown-list {
+        max-height: 180px;
+        font-size: 0.95rem;
     }
     
-    .card h1 {
-        font-size: 1.8rem;
-        margin-bottom: 15px;
+    .dropdown-option {
+        padding: 12px 12px;
     }
     
-    .floating-leaf {
-        display: none;
+    .dropdown-option.group-header {
+        padding: 10px 12px;
+        font-size: 0.85rem;
     }
 }

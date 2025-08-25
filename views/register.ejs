@@ -5,6 +5,154 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register - AR Web Application</title>
     <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        /* Fixed searchable dropdown styles */
+        .searchable-dropdown {
+            position: relative;
+            width: 100%;
+        }
+
+        .dropdown-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #DAA520;
+            border-radius: 0 0 15px 15px;
+            z-index: 9999;
+            display: none;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-top: 2px;
+        }
+
+        .dropdown-list.show {
+            display: block;
+        }
+
+        .dropdown-option {
+            padding: 12px 15px;
+            color: white;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: background-color 0.2s ease;
+            background: #DAA520;
+            position: relative;
+            z-index: 10000;
+        }
+
+        .dropdown-option:hover,
+        .dropdown-option.highlighted {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .dropdown-option:last-child {
+            border-bottom: none;
+            border-radius: 0 0 15px 15px;
+        }
+
+        .dropdown-option.group-header {
+            background: rgba(0, 0, 0, 0.3);
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: default;
+            color: rgba(255, 255, 255, 0.95);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .dropdown-option.group-header:hover {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .no-results {
+            padding: 15px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.8);
+            font-style: italic;
+            background: #DAA520;
+        }
+
+        /* Custom scrollbar for dropdown */
+        .dropdown-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .dropdown-list::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        .dropdown-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 4px;
+        }
+
+        .dropdown-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Dropdown arrow for searchable dropdown */
+        .input-container.searchable-container::after {
+            content: '🔍';
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.7);
+            pointer-events: none;
+            font-size: 0.9rem;
+            z-index: 5;
+        }
+
+        .input-container.searchable-container.open::after {
+            content: '▲';
+        }
+
+        /* Ensure form elements don't interfere */
+        .form-group {
+            position: relative;
+            z-index: 1;
+            margin-bottom: 20px;
+        }
+
+        /* When dropdown is open, increase the container z-index */
+        .form-group.dropdown-active {
+            z-index: 10000;
+        }
+
+        /* Ensure card content doesn't interfere with dropdown */
+        .card {
+            position: relative;
+            z-index: 10;
+            overflow: visible;
+        }
+
+        /* Fix for terms and back-link positioning */
+        .terms, .back-link {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 480px) {
+            .dropdown-list {
+                max-height: 180px;
+                font-size: 0.95rem;
+            }
+            
+            .dropdown-option {
+                padding: 12px 12px;
+            }
+            
+            .dropdown-option.group-header {
+                padding: 10px 12px;
+                font-size: 0.85rem;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -35,9 +183,9 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <div class="input-container">
+                            <div class="input-container searchable-dropdown">
                                 <i class="icon location-icon"></i>
-                                <input type="text" name="city" placeholder="City" required minlength="2">
+                                <input type="text" name="city" placeholder="Type to search cities..." required autocomplete="off">
                             </div>
                         </div>
                         <button type="submit" class="btn btn-primary">Submit</button>
@@ -50,6 +198,331 @@
             </div>
         </div>
     </div>
+    
+    <script>
+        // Indian cities data organized by states
+        const indianCities = {
+            "Metro Cities": [
+                "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Ahmedabad", 
+                "Chennai", "Kolkata", "Surat", "Pune", "Jaipur"
+            ],
+            "Tier 1 Cities": [
+                "Lucknow", "Kanpur", "Nagpur", "Indore", "Thane", "Bhopal", 
+                "Visakhapatnam", "Pimpri-Chinchwad", "Patna", "Vadodara", 
+                "Ghaziabad", "Ludhiana", "Agra", "Nashik", "Faridabad", 
+                "Meerut", "Rajkot", "Kalyan-Dombivali", "Vasai-Virar", "Varanasi"
+            ],
+            "Andhra Pradesh & Telangana": [
+                "Hyderabad", "Visakhapatnam", "Vijayawada", "Guntur", "Nellore", 
+                "Kurnool", "Rajahmundry", "Tirupati", "Kakinada", "Secunderabad", 
+                "Warangal", "Nizamabad", "Eluru", "Anantapur", "Karimnagar"
+            ],
+            "Assam": [
+                "Guwahati", "Dibrugarh", "Silchar", "Jorhat", "Tezpur", 
+                "Nagaon", "Tinsukia", "Bongaigaon"
+            ],
+            "Bihar": [
+                "Patna", "Gaya", "Bhagalpur", "Muzaffarpur", "Purnia", 
+                "Darbhanga", "Bihar Sharif", "Arrah", "Begusarai", "Katihar"
+            ],
+            "Gujarat": [
+                "Ahmedabad", "Surat", "Vadodara", "Rajkot", "Bhavnagar", 
+                "Jamnagar", "Junagadh", "Gandhinagar", "Anand", "Navsari", 
+                "Morbi", "Mehsana", "Bharuch", "Vapi", "Veraval"
+            ],
+            "Haryana": [
+                "Faridabad", "Gurgaon", "Panipat", "Ambala", "Yamunanagar", 
+                "Rohtak", "Hisar", "Karnal", "Sonipat", "Panchkula", 
+                "Bhiwani", "Sirsa", "Bahadurgarh", "Jind", "Thanesar", 
+                "Kaithal", "Palwal", "Rewari"
+            ],
+            "Karnataka": [
+                "Bangalore", "Mysore", "Hubli-Dharwad", "Mangalore", "Belgaum", 
+                "Gulbarga", "Davanagere", "Bellary", "Bijapur", "Shimoga", 
+                "Tumkur", "Raichur", "Bidar", "Hospet", "Hassan", 
+                "Gadag-Betigeri", "Udupi", "Robertsonpet"
+            ],
+            "Kerala": [
+                "Thiruvananthapuram", "Kochi", "Kozhikode", "Kollam", "Thrissur", 
+                "Alappuzha", "Kottayam", "Palakkad", "Kannur", "Kasaragod", 
+                "Malappuram", "Thalassery", "Ponnani", "Vatakara", "Kanhangad", "Payyanur"
+            ],
+            "Madhya Pradesh": [
+                "Indore", "Bhopal", "Jabalpur", "Gwalior", "Ujjain", 
+                "Sagar", "Dewas", "Satna", "Ratlam", "Rewa", 
+                "Murwara", "Singrauli", "Burhanpur", "Khandwa", "Bhind", 
+                "Chhindwara", "Guna", "Shivpuri", "Vidisha", "Chhatarpur"
+            ],
+            "Maharashtra": [
+                "Mumbai", "Pune", "Nagpur", "Thane", "Pimpri-Chinchwad", 
+                "Nashik", "Kalyan-Dombivali", "Vasai-Virar", "Aurangabad", "Navi Mumbai", 
+                "Solapur", "Mira-Bhayandar", "Bhiwandi", "Amravati", "Nanded", 
+                "Kolhapur", "Ulhasnagar", "Sangli-Miraj & Kupwad", "Malegaon", "Jalgaon"
+            ],
+            "Punjab": [
+                "Ludhiana", "Amritsar", "Jalandhar", "Patiala", "Bathinda", 
+                "Mohali", "Firozpur", "Batala", "Pathankot", "Moga", 
+                "Abohar", "Malerkotla", "Khanna", "Phagwara", "Muktsar"
+            ],
+            "Rajasthan": [
+                "Jaipur", "Jodhpur", "Udaipur", "Kota", "Bikaner", 
+                "Ajmer", "Bhilwara", "Alwar", "Bharatpur", "Sikar", 
+                "Pali", "Sri Ganganagar", "Kishangarh", "Beawar", "Dhoulpur"
+            ],
+            "Tamil Nadu": [
+                "Chennai", "Coimbatore", "Madurai", "Tiruchirappalli", "Salem", 
+                "Tirunelveli", "Tiruppur", "Vellore", "Erode", "Thoothukkudi", 
+                "Dindigul", "Thanjavur", "Ranipet", "Sivakasi", "Karur"
+            ],
+            "Uttar Pradesh": [
+                "Lucknow", "Kanpur", "Ghaziabad", "Agra", "Meerut", 
+                "Varanasi", "Allahabad", "Bareilly", "Aligarh", "Moradabad", 
+                "Saharanpur", "Gorakhpur", "Firozabad", "Jhansi", "Muzaffarnagar", 
+                "Mathura", "Rampur", "Shahjahanpur", "Farrukhabad", "Noida"
+            ],
+            "West Bengal": [
+                "Kolkata", "Howrah", "Durgapur", "Asansol", "Siliguri", 
+                "Malda", "Baharampur", "Habra", "Kharagpur", "Shantipur"
+            ],
+            "Delhi": [
+                "New Delhi", "Delhi", "North Delhi", "South Delhi", "East Delhi", 
+                "West Delhi", "Central Delhi"
+            ],
+            "Other Cities": [
+                "Chandigarh", "Puducherry", "Port Blair", "Gangtok", "Shillong", 
+                "Aizawl", "Kohima", "Agartala", "Bhubaneswar", "Dehradun", 
+                "Panaji", "Shimla", "Ranchi", "Imphal", "Srinagar", "Jammu"
+            ]
+        };
+
+        // Create flat array of all cities with their states for searching
+        const allCities = [];
+        Object.keys(indianCities).forEach(state => {
+            indianCities[state].forEach(city => {
+                allCities.push({ city, state });
+            });
+        });
+
+        function createSearchableDropdown(container) {
+            const input = container.querySelector('input[name="city"]');
+            if (!input) return;
+
+            // Create dropdown list
+            const dropdownList = document.createElement('div');
+            dropdownList.className = 'dropdown-list';
+            container.appendChild(dropdownList);
+
+            let selectedIndex = -1;
+            let filteredOptions = [];
+
+            // Get the form group container for z-index management
+            const formGroup = container.closest('.form-group');
+
+            function filterCities(query) {
+                if (!query || query.length < 1) {
+                    return [];
+                }
+
+                const normalizedQuery = query.toLowerCase().trim();
+                
+                // Filter cities that match the query
+                const matches = allCities.filter(item => 
+                    item.city.toLowerCase().includes(normalizedQuery)
+                );
+
+                // Sort by relevance (exact matches first, then starts with, then contains)
+                matches.sort((a, b) => {
+                    const aCityLower = a.city.toLowerCase();
+                    const bCityLower = b.city.toLowerCase();
+                    
+                    // Exact match
+                    if (aCityLower === normalizedQuery) return -1;
+                    if (bCityLower === normalizedQuery) return 1;
+                    
+                    // Starts with query
+                    if (aCityLower.startsWith(normalizedQuery) && !bCityLower.startsWith(normalizedQuery)) return -1;
+                    if (!aCityLower.startsWith(normalizedQuery) && bCityLower.startsWith(normalizedQuery)) return 1;
+                    
+                    // Alphabetical for same type of match
+                    return a.city.localeCompare(b.city);
+                });
+
+                return matches.slice(0, 10); // Limit to 10 results
+            }
+
+            function renderDropdown(options) {
+                dropdownList.innerHTML = '';
+
+                if (options.length === 0) {
+                    dropdownList.innerHTML = '<div class="no-results">No cities found</div>';
+                    dropdownList.classList.add('show');
+                    return;
+                }
+
+                // Group by state for better organization
+                const groupedOptions = {};
+                options.forEach(option => {
+                    if (!groupedOptions[option.state]) {
+                        groupedOptions[option.state] = [];
+                    }
+                    groupedOptions[option.state].push(option.city);
+                });
+
+                // Render grouped options
+                Object.keys(groupedOptions).forEach((state, groupIndex) => {
+                    // Only show state header if there are multiple states
+                    if (Object.keys(groupedOptions).length > 1) {
+                        const header = document.createElement('div');
+                        header.className = 'dropdown-option group-header';
+                        header.textContent = state;
+                        dropdownList.appendChild(header);
+                    }
+
+                    groupedOptions[state].forEach((city, cityIndex) => {
+                        const option = document.createElement('div');
+                        option.className = 'dropdown-option';
+                        option.textContent = city;
+                        option.dataset.value = city;
+                        
+                        option.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            selectCity(city);
+                        });
+
+                        dropdownList.appendChild(option);
+                    });
+                });
+
+                dropdownList.classList.add('show');
+                selectedIndex = -1;
+            }
+
+            function selectCity(city) {
+                input.value = city;
+                hideDropdown();
+                
+                // Clear any existing errors
+                const errorElement = container.querySelector('.field-error');
+                if (errorElement) {
+                    errorElement.remove();
+                }
+                container.classList.remove('error');
+                
+                // Trigger change event for validation
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            function hideDropdown() {
+                dropdownList.classList.remove('show');
+                container.classList.remove('open');
+                
+                // Remove z-index management classes
+                if (formGroup) {
+                    formGroup.classList.remove('dropdown-active');
+                }
+                
+                selectedIndex = -1;
+            }
+
+            function showDropdown() {
+                container.classList.add('open');
+                
+                // Add z-index management classes
+                if (formGroup) {
+                    formGroup.classList.add('dropdown-active');
+                }
+            }
+
+            function highlightOption(index) {
+                const options = dropdownList.querySelectorAll('.dropdown-option:not(.group-header)');
+                
+                // Remove previous highlight
+                options.forEach(opt => opt.classList.remove('highlighted'));
+                
+                if (index >= 0 && index < options.length) {
+                    options[index].classList.add('highlighted');
+                    // Scroll to highlighted option if needed
+                    options[index].scrollIntoView({ block: 'nearest' });
+                }
+            }
+
+            // Input event listeners
+            input.addEventListener('input', (e) => {
+                const query = e.target.value;
+                
+                if (query.length === 0) {
+                    hideDropdown();
+                    return;
+                }
+
+                filteredOptions = filterCities(query);
+                renderDropdown(filteredOptions);
+                showDropdown();
+            });
+
+            input.addEventListener('focus', (e) => {
+                const query = e.target.value;
+                if (query.length > 0) {
+                    filteredOptions = filterCities(query);
+                    renderDropdown(filteredOptions);
+                    showDropdown();
+                }
+            });
+
+            input.addEventListener('keydown', (e) => {
+                const options = dropdownList.querySelectorAll('.dropdown-option:not(.group-header)');
+                
+                switch (e.key) {
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        selectedIndex = Math.min(selectedIndex + 1, options.length - 1);
+                        highlightOption(selectedIndex);
+                        break;
+                        
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        selectedIndex = Math.max(selectedIndex - 1, -1);
+                        highlightOption(selectedIndex);
+                        break;
+                        
+                    case 'Enter':
+                        e.preventDefault();
+                        if (selectedIndex >= 0 && options[selectedIndex]) {
+                            selectCity(options[selectedIndex].dataset.value);
+                        }
+                        break;
+                        
+                    case 'Escape':
+                        hideDropdown();
+                        input.blur();
+                        break;
+                }
+            });
+
+            // Click outside to close
+            document.addEventListener('click', (e) => {
+                if (!container.contains(e.target)) {
+                    hideDropdown();
+                }
+            });
+
+            // Prevent dropdown from closing when clicking inside it
+            dropdownList.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+
+            // Add searchable classes
+            container.classList.add('searchable-container');
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const cityContainer = document.querySelector('.searchable-dropdown');
+            if (cityContainer) {
+                createSearchableDropdown(cityContainer);
+            }
+        });
+    </script>
     <script src="/js/main.js"></script>
 </body>
 </html>

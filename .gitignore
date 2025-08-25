@@ -20,3 +20,5 @@ Thumbs.db
 # Development
 *.tmp
 *.temp
+
+serviceAccountKey.json
