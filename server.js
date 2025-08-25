@@ -1,21 +1,22 @@
-// Enhanced server.js with OTP and Firestore integration
+// Enhanced server.js with improved database and SMS integration
 require('dotenv').config();
 
 const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 const session = require('express-session');
-const axios = require('axios');
-const { URLSearchParams } = require('url');
 const admin = require('firebase-admin');
+const rateLimit = require('express-rate-limit');
+
+// Import custom services
+const DatabaseService = require('./db');
+const SMSService = require('./sms');
 
 // Initialize Firebase Admin SDK
 const serviceAccount = require('./serviceAccountKey.json');
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
-const db = admin.firestore();
-const { FieldValue } = admin.firestore;
 
 const app = express();
 
@@ -24,19 +25,40 @@ const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'your-secret-key-change-in-production';
 
-// SMS-OTP configuration
-const SMS_USERNAME = process.env.SMS_USERNAME || "Lekh09";
-const SMS_APIKEY = process.env.SMS_APIKEY || "409DC-16CCF";
-const SMS_SENDER = process.env.SMS_SENDER || "MORORE";
-const SMS_ROUTE = process.env.SMS_ROUTE || "OTP";
-const SMS_TEMPLATEID = process.env.SMS_TEMPLATEID || "1707174419181876651";
+// Initialize services
+const dbService = new DatabaseService();
+const smsService = new SMSService({
+    username: process.env.SMS_USERNAME,
+    apikey: process.env.SMS_APIKEY,
+    sender: process.env.SMS_SENDER,
+    route: process.env.SMS_ROUTE,
+    templateId: process.env.SMS_TEMPLATEID
+});
+
+// Rate limiting middleware
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // limit each IP to 10 auth requests per windowMs
+    message: 'Too many authentication attempts, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 
 // Middleware
+app.use(generalLimiter);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Session middleware - SINGLE CONFIGURATION
+// Session middleware
 app.use(session({
     secret: SESSION_SECRET,
     resave: false,
@@ -59,18 +81,20 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 // Utility functions
-function generateOTP() {
-    return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
+function validateUsername(username) {
+    return username && 
+           username.length >= 3 && 
+           username.length <= 20 && 
+           /^[a-zA-Z0-9_]+$/.test(username);
 }
 
 function validatePhoneNumber(phone) {
     const cleanPhone = phone.replace(/\D/g, '');
-    // Indian mobile numbers: 10 digits starting with 6, 7, 8, or 9
     return /^[6-9]\d{9}$/.test(cleanPhone);
 }
 
-function validateUsername(username) {
-    return username && username.length >= 3 && username.length <= 20;
+function validateCity(city) {
+    return city && city.length >= 2 && city.length <= 50;
 }
 
 // Routes
@@ -82,9 +106,9 @@ app.get('/register', (req, res) => {
     res.render('register', { error: null });
 });
 
-// POST /register - Store user data and send OTP
-app.post('/register', async (req, res) => {
-    console.log("📵 /register - Request received");
+// Enhanced registration endpoint
+app.post('/register', authLimiter, async (req, res) => {
+    console.log("🔵 /register - Request received");
     console.log("📋 Request body:", req.body);
     
     const { username, phoneNumber, city } = req.body;
@@ -93,14 +117,14 @@ app.post('/register', async (req, res) => {
     const errors = [];
     
     if (!validateUsername(username)) {
-        errors.push('Username must be between 3-20 characters');
+        errors.push('Username must be 3-20 characters and contain only letters, numbers, and underscores');
     }
     
     if (!validatePhoneNumber(phoneNumber)) {
         errors.push('Please enter a valid 10-digit Indian mobile number');
     }
     
-    if (!city || city.length < 2) {
+    if (!validateCity(city)) {
         errors.push('Please enter a valid city name');
     }
     
@@ -109,129 +133,144 @@ app.post('/register', async (req, res) => {
     }
     
     // Normalize phone number
-    const rawPhone = phoneNumber.trim().replace(/\s+/g, '');
-    console.log("📱 Normalized phone:", rawPhone);
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    console.log("📱 Normalized phone:", cleanPhone);
 
     try {
+        // Log registration attempt
+        await dbService.logEvent('registration_attempt', {
+            username,
+            phoneNumber: cleanPhone,
+            city,
+            ip: req.ip,
+            userAgent: req.get('User-Agent')
+        });
+
         // Check if user already exists
-        const uid = `phone_${rawPhone}`;
-        console.log("🔍 Checking if user already exists with UID:", uid);
-        
-        let existingUser = null;
-        try {
-            await admin.auth().getUser(uid);
-            // If we get here, user exists in Firebase Auth
+        console.log("🔍 Checking if user already exists");
+        const existingUser = await dbService.getUserByPhone(cleanPhone);
+        let isNewUser = !existingUser.success;
+
+        if (existingUser.success) {
+            console.log("👤 Existing user found:", existingUser.user.username);
             
-            // Check if user profile exists in Firestore
-            const userSnap = await db.collection("users").doc(uid).get();
-            if (userSnap.exists) {
-                existingUser = userSnap.data();
-                console.log("✅ Existing user found:", existingUser.username);
-            }
-        } catch (err) {
-            if (err.code !== "auth/user-not-found") {
-                console.error("❌ Error checking user:", err);
-                return res.render('register', { error: 'Error checking user. Please try again.' });
-            }
-            console.log("🆕 New user - proceeding with registration");
+            // Update user info if needed
+            await dbService.updateUser(existingUser.uid, {
+                username,
+                city,
+                lastAttemptAt: dbService.FieldValue.serverTimestamp()
+            });
         }
 
         // Store pending user info
-        console.log("💾 Storing pending user info in Firestore");
-        const pendingData = { 
-            username, 
-            phoneNumber: rawPhone,
+        console.log("💾 Storing pending user info");
+        const pendingResult = await dbService.storePendingUser(cleanPhone, {
+            username,
+            phoneNumber: cleanPhone,
             city,
-            isNewUser: !existingUser
-        };
-        
-        await db.collection("otpUsers").doc(rawPhone).set(pendingData);
-        console.log("✅ Pending user info stored");
+            isNewUser
+        });
 
-        // Generate & store OTP
-        const otp = generateOTP();
+        if (!pendingResult.success) {
+            console.error("❌ Failed to store pending user:", pendingResult.error);
+            return res.render('register', { error: 'Registration failed. Please try again.' });
+        }
+
+        // Generate OTP
+        const otp = smsService.generateOTP();
         console.log("🔢 Generated OTP:", otp);
         
-        const expiresAt = admin.firestore.Timestamp.fromDate(
-            new Date(Date.now() + 5 * 60 * 1000) // 5 minutes
-        );
+        // Store OTP in database
+        const otpResult = await dbService.storeOTP(cleanPhone, otp, 5);
+        if (!otpResult.success) {
+            console.error("❌ Failed to store OTP:", otpResult.error);
+            return res.render('register', { error: 'Registration failed. Please try again.' });
+        }
+
+        // Send SMS
+        console.log("📤 Sending SMS");
+        const smsResult = await smsService.sendOTP(cleanPhone, username, otp);
         
-        console.log("💾 Storing OTP in Firestore");
-        await db.collection("otps").doc(rawPhone).set({ otp, expiresAt });
-        console.log("✅ OTP stored in Firestore");
-
-        // Build SMS API URL
-        const smsMessage = `Hi ${username}, ${otp} is your AR Experience verification code, valid for 5 minutes. MORORE`;
-        const params = new URLSearchParams({
-            username: SMS_USERNAME,
-            apikey: SMS_APIKEY,
-            apirequest: "Text",
-            sender: SMS_SENDER,
-            mobile: rawPhone,
-            message: smsMessage,
-            route: SMS_ROUTE,
-            TemplateID: SMS_TEMPLATEID,
-            format: "JSON"
-        });
-        const url = `http://123.108.46.13/sms-panel/api/http/index.php?${params.toString()}`;
-        
-        console.log("📤 Sending SMS via API");
-
-        try {
-            const smsResp = await axios.get(url, { timeout: 10000 });
-            console.log("📣 SMS gateway replied:", smsResp.data);
-            const status = String(smsResp.data?.status || "").toLowerCase();
+        if (!smsResult.success) {
+            console.error("❌ SMS failed:", smsResult.error);
             
-            if (status !== "success") {
-                console.error("❌ SMS failed:", smsResp.data);
-                // For development, we'll still proceed to OTP page
-                if (NODE_ENV === 'development') {
-                    console.log("🚧 Development mode: Proceeding despite SMS failure");
-                } else {
-                    return res.render('register', { error: 'Failed to send OTP. Please try again.' });
-                }
-            }
-
-            // Store session data for OTP verification
-            req.session.userData = {
-                username,
-                phoneNumber: rawPhone,
-                city,
-                otp,
-                otpGenerated: Date.now()
-            };
-
-            console.log('\n' + '='.repeat(50));
-            console.log(`📢 OTP GENERATED FOR TESTING`);
-            console.log(`📱 Phone Number: +91 ${rawPhone}`);
-            console.log(`🔢 OTP Code: ${otp}`);
-            console.log(`⏰ Generated at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
-            console.log('='.repeat(50) + '\n');
+            // Clean up stored data
+            await dbService.deleteOTP(cleanPhone);
+            await dbService.deletePendingUser(cleanPhone);
             
-            res.redirect('/otp');
-
-        } catch (smsError) {
-            console.error("❌ SMS API error:", smsError.response?.data || smsError.message);
-            
-            // For development, we'll still proceed
+            // In development, allow progression despite SMS failure
             if (NODE_ENV === 'development') {
+                console.log("🚧 Development mode: Proceeding despite SMS failure");
+                
+                // Store session data for OTP verification
                 req.session.userData = {
                     username,
-                    phoneNumber: rawPhone,
+                    phoneNumber: cleanPhone,
                     city,
                     otp,
-                    otpGenerated: Date.now()
+                    otpGenerated: Date.now(),
+                    isNewUser
                 };
+
+                console.log('\n' + '='.repeat(50));
+                console.log(`🔢 OTP FOR TESTING (DEV MODE)`);
+                console.log(`📱 Phone: +91 ${cleanPhone}`);
+                console.log(`🔐 OTP: ${otp}`);
+                console.log(`⏰ Generated: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
+                console.log('='.repeat(50) + '\n');
                 
-                console.log("🚧 Development mode: Proceeding despite SMS error");
-                res.redirect('/otp');
+                return res.redirect('/otp');
             } else {
-                return res.render('register', { error: 'Failed to send OTP. Please try again.' });
+                return res.render('register', { 
+                    error: smsResult.resetTime ? 
+                        `${smsResult.error} Try again in ${Math.ceil(smsResult.resetTime / 60)} minutes.` :
+                        'Failed to send SMS. Please try again later.'
+                });
             }
         }
-    } catch (e) {
-        console.error("❌ Error in register endpoint:", e);
-        return res.render('register', { error: 'Internal server error. Please try again.' });
+
+        // Store session data for OTP verification
+        req.session.userData = {
+            username,
+            phoneNumber: cleanPhone,
+            city,
+            otp: NODE_ENV === 'development' ? otp : null,
+            otpGenerated: Date.now(),
+            isNewUser,
+            smsProvider: smsResult.provider,
+            messageId: smsResult.messageId
+        };
+
+        // Log successful SMS
+        await dbService.logEvent('sms_sent', {
+            phoneNumber: cleanPhone,
+            provider: smsResult.provider,
+            messageId: smsResult.messageId,
+            ip: req.ip
+        });
+
+        console.log('\n' + '='.repeat(50));
+        console.log(`📱 SMS SENT SUCCESSFULLY`);
+        console.log(`📞 Phone: +91 ${cleanPhone}`);
+        console.log(`📡 Provider: ${smsResult.provider}`);
+        console.log(`🆔 Message ID: ${smsResult.messageId || 'N/A'}`);
+        if (NODE_ENV === 'development') {
+            console.log(`🔐 OTP (DEV): ${otp}`);
+        }
+        console.log(`⏰ Sent at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
+        console.log('='.repeat(50) + '\n');
+        
+        res.redirect('/otp');
+
+    } catch (error) {
+        console.error("❌ Registration error:", error);
+        await dbService.logEvent('registration_error', {
+            phoneNumber: cleanPhone,
+            error: error.message,
+            ip: req.ip
+        });
+        
+        return res.render('register', { error: 'Registration failed. Please try again.' });
     }
 });
 
@@ -252,147 +291,164 @@ app.get('/otp', (req, res) => {
     });
 });
 
-app.post('/verify-otp', async (req, res) => {
-    console.log('📵 OTP verification request received:', req.body);
+// Enhanced OTP verification endpoint
+app.post('/verify-otp', authLimiter, async (req, res) => {
+    console.log('🔵 OTP verification request received');
     
     // Get OTP from form
-    let otp = req.body.otp;
+    let otp = req.body.otp || '';
     if (!otp) {
         otp = (req.body.otp1 || '') + (req.body.otp2 || '') + (req.body.otp3 || '') + (req.body.otp4 || '');
     }
     
-    console.log('Received OTP:', otp);
+    console.log('📝 Received OTP:', otp);
     
     if (!req.session.userData) {
-        console.log('No session data found, redirecting to register');
+        console.log('❌ No session data found');
         return res.redirect('/register');
     }
     
-    const { phoneNumber } = req.session.userData;
+    const { phoneNumber, isNewUser } = req.session.userData;
+    const displayOTP = NODE_ENV !== 'production' ? req.session.userData.otp : null;
     
     try {
-        // Validate OTP from Firestore
-        console.log("🔍 Looking up OTP in Firestore");
-        const otpSnap = await db.collection("otps").doc(phoneNumber).get();
-        
-        if (!otpSnap.exists) {
-            console.log("❌ No OTP found for this phone");
-            const displayOTP = NODE_ENV !== 'production' ? req.session.userData.otp : null;
-            return res.render('otp', { 
-                phoneNumber: phoneNumber,
-                error: 'OTP not found. Please request a new one.',
-                testOTP: displayOTP
-            });
-        }
-        
-        const otpData = otpSnap.data();
-        console.log("📄 OTP data found:", { 
-            storedOtp: otpData.otp, 
-            expiresAt: otpData.expiresAt.toDate() 
+        // Log verification attempt
+        await dbService.logEvent('otp_verification_attempt', {
+            phoneNumber: phoneNumber,
+            ip: req.ip,
+            userAgent: req.get('User-Agent')
         });
+
+        // Verify OTP using database service
+        console.log("🔐 Verifying OTP from database");
+        const otpVerification = await dbService.verifyOTP(phoneNumber, otp);
         
-        const currentTime = admin.firestore.Timestamp.now().toMillis();
-        const expiryTime = otpData.expiresAt.toMillis();
-        
-        if (otpData.otp !== otp) {
-            console.log("❌ OTP mismatch - provided:", otp, "stored:", otpData.otp);
-            const displayOTP = NODE_ENV !== 'production' ? req.session.userData.otp : null;
+        if (!otpVerification.success) {
+            console.log("❌ OTP verification failed:", otpVerification.error);
+            
+            await dbService.logEvent('otp_verification_failed', {
+                phoneNumber: phoneNumber,
+                error: otpVerification.error,
+                ip: req.ip
+            });
+            
             return res.render('otp', { 
                 phoneNumber: phoneNumber,
-                error: 'Invalid OTP. Please try again.',
+                error: otpVerification.error,
                 testOTP: displayOTP
             });
         }
+
+        console.log("✅ OTP verified successfully");
+
+        // Retrieve pending user info
+        console.log("📋 Retrieving pending user info");
+        const pendingResult = await dbService.getPendingUser(phoneNumber);
         
-        if (currentTime > expiryTime) {
-            console.log("❌ OTP expired");
-            const displayOTP = NODE_ENV !== 'production' ? req.session.userData.otp : null;
+        if (!pendingResult.success) {
+            console.error("❌ Pending user not found:", pendingResult.error);
             return res.render('otp', { 
                 phoneNumber: phoneNumber,
-                error: 'OTP has expired. Please request a new one.',
+                error: 'Registration session expired. Please register again.',
                 testOTP: displayOTP
             });
         }
-        
-        console.log("✅ OTP valid - deleting from Firestore");
-        await db.collection("otps").doc(phoneNumber).delete();
 
-        // Retrieve and delete pending user info
-        console.log("🔍 Retrieving pending user info");
-        const pendingSnap = await db.collection("otpUsers").doc(phoneNumber).get();
-        const pending = pendingSnap.exists ? pendingSnap.data() : {};
-        console.log("📄 Pending user data:", pending);
-        
-        await db.collection("otpUsers").doc(phoneNumber).delete();
-        console.log("✅ Deleted pending user info");
+        const pendingData = pendingResult.userData;
 
-        // Normalize to E.164
-        let firebasePhone;
-        if (/^\d{10}$/.test(phoneNumber)) {
-            firebasePhone = "+91" + phoneNumber;
-        } else if (phoneNumber.startsWith("+") && /^\+\d{11,15}$/.test(phoneNumber)) {
-            firebasePhone = phoneNumber;
-        } else {
-            firebasePhone = "+" + phoneNumber;
-        }
-        console.log("📱 Firebase phone format:", firebasePhone);
-
-        // Ensure Firebase user exists
+        // Ensure Firebase Auth user exists
         const uid = `phone_${phoneNumber}`;
-        console.log("🔍 Checking if Firebase user exists with UID:", uid);
+        const firebasePhone = `+91${phoneNumber}`;
         
+        console.log("🔐 Managing Firebase Auth user");
         try {
             await admin.auth().getUser(uid);
             console.log("✅ Firebase user already exists");
         } catch (err) {
             if (err.code === "auth/user-not-found") {
-                console.log("🔍 Creating new Firebase user");
+                console.log("👤 Creating new Firebase user");
                 await admin.auth().createUser({
                     uid,
                     phoneNumber: firebasePhone
                 });
                 console.log("✅ Firebase user created");
             } else {
-                console.error("❌ Firebase auth error:", err);
-                return res.render('otp', { 
-                    phoneNumber: phoneNumber,
-                    error: 'Authentication error. Please try again.',
-                    testOTP: NODE_ENV !== 'production' ? req.session.userData.otp : null
-                });
+                throw err;
             }
         }
 
-        // Store user profile in Firestore
-        console.log("💾 Storing user profile in Firestore");
-        const userProfileData = {
-            username: pending.username || req.session.userData.username,
+        // Create or update user in database
+        let userResult;
+        if (isNewUser) {
+            console.log("👤 Creating new user profile");
+            userResult = await dbService.createUser({
+                username: pendingData.username,
+                phoneNumber: phoneNumber,
+                city: pendingData.city
+            });
+        } else {
+            console.log("👤 Updating existing user profile");
+            userResult = await dbService.updateUser(uid, {
+                username: pendingData.username,
+                city: pendingData.city
+            });
+        }
+
+        if (!userResult.success) {
+            console.error("❌ Failed to save user:", userResult.error);
+            return res.render('otp', { 
+                phoneNumber: phoneNumber,
+                error: 'Registration failed. Please try again.',
+                testOTP: displayOTP
+            });
+        }
+
+        // Mark user as verified
+        await dbService.markUserVerified(uid);
+
+        // Clean up temporary data
+        await dbService.deletePendingUser(phoneNumber);
+
+        // Log successful verification
+        await dbService.logEvent('user_verified', {
+            uid: uid,
             phoneNumber: phoneNumber,
-            city: pending.city || req.session.userData.city,
-            createdAt: FieldValue.serverTimestamp(),
-            lastLoginAt: FieldValue.serverTimestamp()
-        };
+            username: pendingData.username,
+            city: pendingData.city,
+            isNewUser: isNewUser,
+            ip: req.ip
+        });
 
-        await db.collection("users").doc(uid).set(userProfileData, { merge: true });
-        console.log("✅ User profile stored");
-
-        // Mark as verified and proceed to AR experience
+        // Update session
         req.session.userData.verified = true;
-        console.log('✅ OTP verified successfully, redirecting to AR experience');
+        req.session.userData.uid = uid;
+        
+        console.log('✅ User registration/login completed successfully');
+        console.log(`👤 User: ${pendingData.username} (${isNewUser ? 'New' : 'Existing'})`);
+        console.log(`📞 Phone: +91 ${phoneNumber}`);
+        console.log(`📍 City: ${pendingData.city}`);
         
         res.redirect('/ar-experience');
 
-    } catch (e) {
-        console.error("❌ Error in verify-otp endpoint:", e);
-        const displayOTP = NODE_ENV !== 'production' ? req.session.userData.otp : null;
+    } catch (error) {
+        console.error("❌ OTP verification error:", error);
+        
+        await dbService.logEvent('otp_verification_error', {
+            phoneNumber: phoneNumber,
+            error: error.message,
+            ip: req.ip
+        });
+        
         return res.render('otp', { 
             phoneNumber: phoneNumber,
-            error: 'Internal server error. Please try again.',
+            error: 'Verification failed. Please try again.',
             testOTP: displayOTP
         });
     }
 });
 
-app.post('/resend-otp', async (req, res) => {
+// Enhanced resend OTP endpoint
+app.post('/resend-otp', authLimiter, async (req, res) => {
     if (!req.session.userData) {
         return res.json({ success: false, message: 'Session expired' });
     }
@@ -400,58 +456,91 @@ app.post('/resend-otp', async (req, res) => {
     const { phoneNumber, username } = req.session.userData;
     
     try {
-        const newOTP = generateOTP();
-        const expiresAt = admin.firestore.Timestamp.fromDate(
-            new Date(Date.now() + 5 * 60 * 1000)
-        );
-        
-        // Update OTP in Firestore
-        await db.collection("otps").doc(phoneNumber).set({ otp: newOTP, expiresAt });
-        
-        // Update session
-        req.session.userData.otp = newOTP;
-        req.session.userData.otpGenerated = Date.now();
-        
-        // Send SMS
-        const smsMessage = `Hi ${username}, ${newOTP} is your AR Experience verification code, valid for 5 minutes. MORORE`;
-        const params = new URLSearchParams({
-            username: SMS_USERNAME,
-            apikey: SMS_APIKEY,
-            apirequest: "Text",
-            sender: SMS_SENDER,
-            mobile: phoneNumber,
-            message: smsMessage,
-            route: SMS_ROUTE,
-            TemplateID: SMS_TEMPLATEID,
-            format: "JSON"
+        // Log resend attempt
+        await dbService.logEvent('otp_resend_attempt', {
+            phoneNumber: phoneNumber,
+            ip: req.ip
         });
-        const url = `http://123.108.46.13/sms-panel/api/http/index.php?${params.toString()}`;
+
+        // Generate new OTP
+        const newOTP = smsService.generateOTP();
         
-        try {
-            const smsResp = await axios.get(url, { timeout: 10000 });
-            console.log("📣 SMS resent:", smsResp.data);
-        } catch (smsError) {
-            console.error("❌ SMS resend error:", smsError.message);
-            if (NODE_ENV !== 'development') {
-                return res.json({ success: false, message: 'Failed to send SMS' });
-            }
+        // Store new OTP in database
+        const otpResult = await dbService.storeOTP(phoneNumber, newOTP, 5);
+        if (!otpResult.success) {
+            return res.json({ success: false, message: 'Failed to generate new OTP' });
         }
+
+        // Send SMS
+        const smsResult = await smsService.sendOTP(phoneNumber, username, newOTP);
+        
+        if (!smsResult.success) {
+            // Clean up OTP if SMS failed
+            await dbService.deleteOTP(phoneNumber);
+            
+            if (NODE_ENV === 'development') {
+                // In dev mode, allow resend despite SMS failure
+                req.session.userData.otp = newOTP;
+                req.session.userData.otpGenerated = Date.now();
+                
+                console.log('\n' + '='.repeat(50));
+                console.log(`🔄 OTP RESENT (DEV MODE)`);
+                console.log(`📱 Phone: +91 ${phoneNumber}`);
+                console.log(`🔐 New OTP: ${newOTP}`);
+                console.log(`⏰ Resent: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
+                console.log('='.repeat(50) + '\n');
+                
+                return res.json({ 
+                    success: true, 
+                    message: 'OTP resent successfully',
+                    testOTP: newOTP
+                });
+            }
+            
+            return res.json({ 
+                success: false, 
+                message: smsResult.error || 'Failed to send SMS'
+            });
+        }
+
+        // Update session
+        req.session.userData.otp = NODE_ENV === 'development' ? newOTP : null;
+        req.session.userData.otpGenerated = Date.now();
+
+        // Log successful resend
+        await dbService.logEvent('otp_resent', {
+            phoneNumber: phoneNumber,
+            provider: smsResult.provider,
+            messageId: smsResult.messageId,
+            ip: req.ip
+        });
         
         console.log('\n' + '='.repeat(50));
-        console.log(`🔄 OTP RESENT FOR TESTING`);
-        console.log(`📱 Phone Number: +91 ${phoneNumber}`);
-        console.log(`🔢 New OTP Code: ${newOTP}`);
-        console.log(`⏰ Resent at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
+        console.log(`🔄 OTP RESENT SUCCESSFULLY`);
+        console.log(`📞 Phone: +91 ${phoneNumber}`);
+        console.log(`📡 Provider: ${smsResult.provider}`);
+        console.log(`🆔 Message ID: ${smsResult.messageId || 'N/A'}`);
+        if (NODE_ENV === 'development') {
+            console.log(`🔐 New OTP (DEV): ${newOTP}`);
+        }
+        console.log(`⏰ Resent: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
         console.log('='.repeat(50) + '\n');
         
         res.json({ 
             success: true, 
-            message: 'OTP sent successfully',
+            message: 'OTP resent successfully',
             testOTP: NODE_ENV !== 'production' ? newOTP : undefined
         });
         
     } catch (error) {
         console.error("❌ Error resending OTP:", error);
+        
+        await dbService.logEvent('otp_resend_error', {
+            phoneNumber: phoneNumber,
+            error: error.message,
+            ip: req.ip
+        });
+        
         res.json({ success: false, message: 'Failed to resend OTP' });
     }
 });
@@ -466,18 +555,13 @@ app.get('/ar-experience', (req, res) => {
     });
 });
 
-// Development-only endpoint to get current OTP
+// Development endpoints
 if (NODE_ENV !== 'production') {
     app.get('/dev/otp', (req, res) => {
-        console.log('Session check - Session ID:', req.sessionID);
-        console.log('Session data:', req.session);
-        
         if (!req.session.userData) {
             return res.json({ 
                 error: 'No OTP session found',
-                sessionId: req.sessionID,
-                hasSession: !!req.session,
-                sessionKeys: Object.keys(req.session || {})
+                sessionId: req.sessionID
             });
         }
         
@@ -492,6 +576,25 @@ if (NODE_ENV !== 'production') {
             sessionId: req.sessionID
         });
     });
+
+    app.get('/dev/stats', async (req, res) => {
+        try {
+            const dbStats = await dbService.getUserStats();
+            const smsStats = smsService.getStats();
+            
+            res.json({
+                database: dbStats.success ? dbStats.stats : { error: dbStats.error },
+                sms: smsStats,
+                server: {
+                    uptime: process.uptime(),
+                    environment: NODE_ENV,
+                    nodeVersion: process.version
+                }
+            });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
 }
 
 // API endpoints
@@ -501,20 +604,22 @@ app.get('/api/user-data', async (req, res) => {
     }
     
     const { phoneNumber } = req.session.userData;
-    const uid = `phone_${phoneNumber}`;
     
     try {
-        const userSnap = await db.collection("users").doc(uid).get();
-        if (!userSnap.exists) {
+        const userResult = await dbService.getUserByPhone(phoneNumber);
+        
+        if (!userResult.success) {
             return res.status(404).json({ error: 'User not found' });
         }
         
-        const userData = userSnap.data();
+        const userData = userResult.user;
         res.json({
-            username: userData.username || null,
-            city: userData.city || null,
-            phoneNumber: userData.phoneNumber || null,
-            verified: true
+            username: userData.username,
+            city: userData.city,
+            phoneNumber: userData.phoneNumber,
+            verified: userData.isVerified,
+            createdAt: userData.createdAt,
+            lastLoginAt: userData.lastLoginAt
         });
     } catch (error) {
         console.error("Error fetching user data:", error);
@@ -522,14 +627,71 @@ app.get('/api/user-data', async (req, res) => {
     }
 });
 
-// Health check endpoint
-app.get('/api/health-check', (req, res) => {
-    res.json({ status: 'OK', timestamp: new Date().toISOString() });
+app.get('/api/health-check', async (req, res) => {
+    try {
+        const dbStats = await dbService.getUserStats();
+        
+        res.json({ 
+            status: 'OK', 
+            timestamp: new Date().toISOString(),
+            database: dbStats.success ? 'connected' : 'error',
+            environment: NODE_ENV
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            status: 'ERROR', 
+            timestamp: new Date().toISOString(),
+            error: error.message 
+        });
+    }
 });
+
+// Cleanup tasks
+const runCleanupTasks = async () => {
+    try {
+        console.log('🧹 Running cleanup tasks...');
+        
+        // Cleanup expired OTPs
+        const otpCleanup = await dbService.cleanupExpiredOTPs();
+        if (otpCleanup.success && otpCleanup.cleaned > 0) {
+            console.log(`✅ Cleaned ${otpCleanup.cleaned} expired OTPs`);
+        }
+        
+        // Cleanup expired pending users
+        const userCleanup = await dbService.cleanupExpiredPendingUsers();
+        if (userCleanup.success && userCleanup.cleaned > 0) {
+            console.log(`✅ Cleaned ${userCleanup.cleaned} expired pending users`);
+        }
+        
+        // Cleanup SMS rate limits
+        const smsCleanup = smsService.cleanupRateLimits();
+        if (smsCleanup > 0) {
+            console.log(`✅ Cleaned ${smsCleanup} SMS rate limit entries`);
+        }
+        
+        console.log('✅ Cleanup tasks completed');
+    } catch (error) {
+        console.error('❌ Cleanup task error:', error);
+    }
+};
+
+// Run cleanup every hour
+setInterval(runCleanupTasks, 60 * 60 * 1000);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-    console.error(err.stack);
+    console.error('❌ Application error:', err.stack);
+    
+    // Log error to database
+    dbService.logEvent('application_error', {
+        error: err.message,
+        stack: err.stack,
+        url: req.url,
+        method: req.method,
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
+    });
+    
     res.status(500).render('error', { 
         error: 'Something went wrong!',
         message: NODE_ENV === 'development' ? err.message : 'Internal Server Error'
@@ -544,14 +706,51 @@ app.use((req, res) => {
     });
 });
 
+// Graceful shutdown
+process.on('SIGINT', async () => {
+    console.log('\n🔄 Shutting down gracefully...');
+    
+    // Run final cleanup
+    await runCleanupTasks();
+    
+    console.log('✅ Cleanup completed. Server shutting down.');
+    process.exit(0);
+});
+
 app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-    console.log(`Environment: ${NODE_ENV}`);
+    console.log('\n' + '='.repeat(60));
+    console.log('🚀 AR Web Application Server Started');
+    console.log('='.repeat(60));
+    console.log(`🌐 Server running on: http://localhost:${PORT}`);
+    console.log(`🏃 Environment: ${NODE_ENV}`);
+    console.log(`🔐 Session Secret: ${SESSION_SECRET ? 'Configured' : 'Default (Change in production!)'}`);
+    console.log(`🗄️  Database: Firebase Firestore`);
+    console.log(`📱 SMS Service: Configured with rate limiting`);
+    
     if (NODE_ENV !== 'production') {
-        console.log('⚠️ Development mode: OTP will be displayed on the page');
+        console.log(`⚠️  Development Mode Features:`);
+        console.log(`   - OTP displayed on verification page`);
+        console.log(`   - Debug endpoints available: /dev/otp, /dev/stats`);
+        console.log(`   - SMS failures allow progression`);
     }
-    console.log('📱 Flow: Welcome → Register → OTP → AR Experience');
-    console.log('🔥 Firebase Firestore integration enabled');
+    
+    console.log('\n📋 Application Flow:');
+    console.log('   1. Welcome → /');
+    console.log('   2. Register → /register');
+    console.log('   3. OTP Verification → /otp');
+    console.log('   4. AR Experience → /ar-experience');
+    
+    console.log('\n🔧 Features:');
+    console.log('   ✅ Firebase Authentication & Firestore');
+    console.log('   ✅ SMS OTP with fallback providers');
+    console.log('   ✅ Rate limiting & validation');
+    console.log('   ✅ Automatic cleanup tasks');
+    console.log('   ✅ Comprehensive logging');
+    console.log('   ✅ Error handling & recovery');
+    console.log('='.repeat(60) + '\n');
+    
+    // Run initial cleanup
+    setTimeout(runCleanupTasks, 5000);
 });
 
 module.exports = app;
