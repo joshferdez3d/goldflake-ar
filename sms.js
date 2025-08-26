@@ -96,8 +96,9 @@ class SMSService {
     }
 
     // Build SMS message
+    // Replace the buildMessage method with:
     buildMessage(username, otp, expiryMinutes = 5) {
-        return `Hi ${username}, ${otp} is your AR Experience verification code, valid for ${expiryMinutes} minutes. Do not share with anyone. MORORE`;
+        return `Hi, ${otp} is the Survey Code which you had requested, it is valid for 10 mins. MORORE`;
     }
 
     // Send SMS via primary provider
