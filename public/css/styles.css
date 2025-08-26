@@ -7,11 +7,12 @@
 
 body {
     font-family: 'Arial', sans-serif;
-    background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+    background: 
+        url('/images/golden-circles-bg.png') center/cover no-repeat fixed,
+        linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
     min-height: 100vh;
     overflow: hidden;
 }
-
 .container {
     position: relative;
     width: 100vw;
