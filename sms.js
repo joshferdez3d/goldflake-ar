@@ -102,13 +102,20 @@ class SMSService {
 
     // Send SMS via primary provider
     async sendViaPrimaryProvider(phoneNumber, message, retryCount = 0) {
+
+
         try {
+
+             let formattedPhone = phoneNumber.replace(/\D/g, '');
+            if (!formattedPhone.startsWith('91')) {
+                formattedPhone = '91' + formattedPhone;
+            }
             const params = new URLSearchParams({
                 username: this.config.username,
                 apikey: this.config.apikey,
                 apirequest: "Text",
                 sender: this.config.sender,
-                mobile: phoneNumber,
+                mobile: formattedPhone,
                 message: message,
                 route: this.config.route,
                 TemplateID: this.config.templateId,
